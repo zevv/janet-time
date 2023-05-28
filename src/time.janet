@@ -1,5 +1,6 @@
 
-# Predefined common format strings
+# Helper functions
+
 (defn- check-fmt [fmt]
   (case fmt
     :iso-8601 "%Y-%m-%dT%H:%M:%S%z"
@@ -16,7 +17,7 @@
       (f))))
 
 
-
+## Read clocks
 
 (defn time/now
   ``Read the real time clock. The result is a floating point number indicating
@@ -36,6 +37,8 @@
   (os/clock :cputime))
 
 
+## Conversion to and from datetime
+
 (defn time/to-datetime
   ``Convert a time to a datetime.`tz` is the timezone to use, default is the
   local time zone``
@@ -51,6 +54,23 @@
   (with-tz tz (fn []
     (os/mktime dt true))))
 
+## Formatting
+
+(defn time/format 
+  ``Format the given time to ASCII string. The format string is C89 strftime(3)
+  format, or one of the predefined formats:
+   - :iso-8601
+   - :rfc-3339
+   - :rfc-2822
+   - :w3c
+  The time zone is optional, default is the local time zone.``
+  [time &opt fmt tz]
+  (default fmt :rfc-2822)
+  (with-tz tz (fn []
+    (os/strftime (check-fmt fmt) time true))))
+
+
+## Parsing
 
 (def- timefmt-parser (peg/compile
   ~{:main (any :thing)
@@ -60,8 +80,7 @@
     :fmtchar (set "YmdHMSpIabcyABZc")
     }))
 
-
-(defn make-time-parser [fmt]
+(defn- make-time-parser [fmt]
   (let [dt @{}
         rule (peg/match timefmt-parser fmt)
         p ~{:main ,(tuple '* ;rule '(not 1))
@@ -82,7 +101,6 @@
       (peg/match p ts)
       dt)))
 
-
 (def parser-cache @{}) # TODO: thread safe?
 
 (defn time/parse
@@ -97,8 +115,8 @@
   - %M: minute, 2 digits, 00-59
   - %S: second, 2 digits, 00-59
   - %p: AM/PM
-  - %z: time zone offset, +0800 (TODO)
-  - %Z: time zone name, UTC (TODO)
+  - %z: time zone offset, +HHMM (TODO)
+  - %Z: time zone name, string (TODO)
   or one of the predefined formats:
   - :iso-8601
   - :rfc-3339
@@ -120,18 +138,5 @@
       (def dt (parser ts))
       (os/mktime dt true))))
 
-
-(defn time/format 
-  ``Format the given time to ASCII string. The format string is C89 strftime(3)
-  format, or one of the predefined formats:
-   - :iso-8601
-   - :rfc-3339
-   - :rfc-2822
-   - :w3c
-  The time zone is optional, default is the local time zone.``
-  [time &opt fmt tz]
-  (default fmt :rfc-2822)
-  (with-tz tz (fn []
-    (os/strftime (check-fmt fmt) time true))))
 
 

@@ -9,7 +9,6 @@
     fmt))
 
 (defn- with-tz [tz f]
-  (default tz "UTC")
   (let [old-tz (os/getenv "TZ")]
     (os/setenv "TZ" tz)
     (defer
@@ -20,16 +19,20 @@
 
 
 (defn time/now
-  `Get current system time`
+  ``Read the real time clock. The result is a floating point number indicating
+  the number of seconds since the UNIX epoch.``
   []
   (os/clock :realtime))
 
-(defn time/monotime []
-  `Get current monotonic time`
+(defn time/monotonic []
+  `Get current monotonic time. The result is a floating point number with an
+  undefined epoch that is guarunteed to be monotonic.`
   (os/clock :monotonic))
 
 (defn time/cputime []
-  `Get CPU time used by current process`
+  `Get CPU time used by current process. The result is a floating point number
+  indicating the number of seconds the current process has spent executing on
+  the CPU.`
   (os/clock :cputime))
 
 
@@ -72,6 +75,8 @@
             :S (cmt (number 2) ,|(put dt :seconds $))
             :p (+ "AM" :PM)
             :PM (cmt "PM" ,|(update dt :hours (fn [h] (+ h 12))))
+            :%z (cmt 0 ,|(error "TODO"))
+            :%Z (cmt 0 ,|(error "TODO"))
             }]
     (fn [ts]
       (peg/match p ts)
@@ -92,6 +97,8 @@
   - %M: minute, 2 digits, 00-59
   - %S: second, 2 digits, 00-59
   - %p: AM/PM
+  - %z: time zone offset, +0800 (TODO)
+  - %Z: time zone name, UTC (TODO)
   or one of the predefined formats:
   - :iso-8601
   - :rfc-3339
@@ -99,8 +106,6 @@
   - :w3c
   The time zone is optional, default is the local time zone.``
   # TODO
-  #- %z: time zone offset, +0800
-  #- %Z: time zone name, UTC
   [fmt ts &opt tz]
   (with-tz tz (fn []
     (def fmt (check-fmt fmt))

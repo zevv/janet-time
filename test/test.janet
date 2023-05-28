@@ -22,7 +22,6 @@
 (assert (< (- t2 t1) 0.05))
 
 
-
 # Conversion from time to datetime
 
 (assert (deep= (time/to-datetime 1685300844 "GMT")

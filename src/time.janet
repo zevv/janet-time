@@ -9,12 +9,18 @@
     :w3c "%Y-%m-%dT%H:%M:%S%z"
     fmt))
 
-(defn- with-tz [tz f]
+
+(defn- with-tz-overide [tz f]
   (let [old-tz (os/getenv "TZ")]
     (os/setenv "TZ" tz)
     (defer
       (os/setenv "TZ" old-tz)
-      (f))))
+      (f true))))
+
+(defn- with-tz [tz f]
+  (if (= tz "UTC")
+    (f false)
+    (with-tz-overide tz f)))
 
 
 ## Read clocks
@@ -43,16 +49,16 @@
   ``Convert a time to a datetime.`tz` is the timezone to use, default is the
   local time zone``
   [time &opt tz]
-  (with-tz tz (fn []
-    (os/date time true))))
+  (with-tz tz (fn [local]
+    (os/date time local))))
 
 
 (defn time/from-datetime
   ``Convert a datetime to a time. `tz` is the timezone to use, default is the
   local time zone``
   [dt &opt tz]
-  (with-tz tz (fn []
-    (os/mktime dt true))))
+  (with-tz tz (fn [local]
+    (os/mktime dt local))))
 
 ## Formatting
 
@@ -66,8 +72,8 @@
   The time zone is optional, default is the local time zone.``
   [time &opt fmt tz]
   (default fmt :rfc-2822)
-  (with-tz tz (fn []
-    (os/strftime (check-fmt fmt) time true))))
+  (with-tz tz (fn [local]
+    (os/strftime (check-fmt fmt) time local))))
 
 
 ## Parsing
@@ -83,7 +89,7 @@
 (defn- make-time-parser [fmt]
   (let [dt @{}
         rule (peg/match timefmt-parser fmt)
-        p ~{:main ,(tuple '* ;rule '(not 1))
+        p (peg/compile ~{:main ,(tuple '* ;rule '(not 1))
             :Y (cmt (number 4) ,|(put dt :year $))
             :y (cmt (number 2) ,|(put dt :year (+ 2000 $)))
             :m (cmt (number 2) ,|(put dt :month (dec $)))
@@ -96,7 +102,7 @@
             :PM (cmt "PM" ,|(update dt :hours (fn [h] (+ h 12))))
             :%z (cmt 0 ,|(error "TODO"))
             :%Z (cmt 0 ,|(error "TODO"))
-            }]
+            })]
     (fn [ts]
       (peg/match p ts)
       dt)))
@@ -125,7 +131,7 @@
   The time zone is optional, default is the local time zone.``
   # TODO
   [fmt ts &opt tz]
-  (with-tz tz (fn []
+  (with-tz tz (fn [local]
     (def fmt (check-fmt fmt))
     (def parser
       (if (parser-cache fmt)
@@ -136,7 +142,7 @@
           parser)))
 
       (def dt (parser ts))
-      (os/mktime dt true))))
+      (os/mktime dt local))))
 
 
 

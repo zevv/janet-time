@@ -67,7 +67,7 @@ strftime(3) format, or one of the predefined formats:
 When the `fmt` argument is not given, it defaults to the `:rfc-2822` format.
 
 
-`(time/parse fmt string &opt tz)
+`(time/parse fmt string &opt tz)`
 
 parse a time in the given format. The format string is a subset of the C89
 strftime(3) format:

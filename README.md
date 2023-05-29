@@ -7,6 +7,11 @@ The goal is to provide a lightweight library for working with times and dates.
 "complicated" functionaltiy like localization and time zone handling should be
 delagated to the operating system or C library when possible.
 
+## TBD
+
+- Handling `%z` in `time/format` and `time/parse`
+
+
 ## API
 
 The functions that perform conversion between `time` and `datetime` types

@@ -47,13 +47,14 @@
 (def tests [
   [1685301229 "%Y-%m-%d %H:%M:%S" "UTC"  "2023-05-28 19:13:49"]
   [1685301744 "%Y-%m-%d %H:%M:%S" "Australia/Adelaide" "2023-05-29 04:52:24"]
+  [1685359716 "%Y-%m-%d %H:%M:%S %z" "Australia/Adelaide" "2023-05-29 20:58:36 +0930"]
 ])
 
 (each [t fmt tz result] tests
-  (assert (= (time/format t fmt tz) result)))
+  (assert (= (time/format t fmt tz) result) (string "format" fmt)))
 
 
 # Parsing
 
 (each [t fmt tz result] tests
-  (assert (= (time/parse fmt result tz) t)))
+  (assert (= (time/parse fmt result tz) t) (string "parse " fmt)))

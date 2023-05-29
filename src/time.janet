@@ -23,6 +23,23 @@
     (with-tz-overide tz f)))
 
 
+
+(defn time/datetime-diff [dt1 dt2]
+  (def t1 (os/mktime dt1 false))
+  (def t2 (os/mktime dt2 false))
+  (- t1 t2))
+
+## Get info about the given time zone
+
+(defn time/tzinfo [&opt tz]
+  (let [now (os/clock :realtime)
+        dt-utc (os/date now false)
+        dt-local (with-tz tz (fn [local] (os/date now true)))
+        t-utc (os/mktime dt-utc false)
+        t-local (os/mktime dt-local false)
+        utc-offset (- t-local t-utc)]
+    { :utc-offset utc-offset :dst (dt-local :dst) }))
+
 ## Read clocks
 
 (defn time/now
@@ -62,6 +79,18 @@
 
 ## Formatting
 
+(defn- format-%z [fmt &opt tz]
+  (if (string/find "%z" fmt)
+    (do
+      (def utc-offset ((time/tzinfo tz) :utc-offset))
+      (def sign (if (< utc-offset 0) "-" "+"))
+      (def utc-offset (math/abs utc-offset))
+      (def hours (math/floor (/ utc-offset 3600)))
+      (def minutes (math/floor (/ (mod utc-offset 3600) 60)))
+      (def z (string/format "%s%02d%02d" sign hours minutes))
+      (string/replace-all "%z" z fmt))
+    fmt))
+
 (defn time/format 
   ``Format the given time to ASCII string. The format string is C89 strftime(3)
   format, or one of the predefined formats:
@@ -72,8 +101,10 @@
   The time zone is optional, default is the local time zone.``
   [time &opt fmt tz]
   (default fmt :rfc-2822)
+  (def fmt (check-fmt fmt))
+  (def fmt (format-%z fmt tz))
   (with-tz tz (fn [local]
-    (os/strftime (check-fmt fmt) time local))))
+    (os/strftime fmt time local))))
 
 
 ## Parsing
@@ -83,11 +114,11 @@
     :thing (+ :fmt :other)
     :fmt (replace (* "%" (<- :fmtchar)) ,(fn [c] (keyword c)))
     :other (<- (to "%"))
-    :fmtchar (set "YmdHMSpIabcyABZc")
+    :fmtchar (set "YmdHMSpIabcyABzc")
     }))
 
 (defn- make-time-parser [fmt]
-  (let [dt @{}
+  (let [dt @{ :utc-offset 0}
         rule (peg/match timefmt-parser fmt)
         p (peg/compile ~{:main ,(tuple '* ;rule '(not 1))
             :Y (cmt (number 4) ,|(put dt :year $))
@@ -98,10 +129,12 @@
             :I (cmt (number 2) ,|(put dt :hours $))
             :M (cmt (number 2) ,|(put dt :minutes $))
             :S (cmt (number 2) ,|(put dt :seconds $))
+            :a :w+ # ignore
+            :b :w+ # ignore
             :p (+ "AM" :PM)
             :PM (cmt "PM" ,|(update dt :hours (fn [h] (+ h 12))))
-            :%z (cmt 0 ,|(error "TODO"))
-            :%Z (cmt 0 ,|(error "TODO"))
+            :z (cmt (* (number 3) (number 2)) ,(fn [h m]
+              (put dt :utc-offset (+ (* h 3600) (* m 60)))))
             })]
     (fn [ts]
       (peg/match p ts)
@@ -121,8 +154,7 @@
   - %M: minute, 2 digits, 00-59
   - %S: second, 2 digits, 00-59
   - %p: AM/PM
-  - %z: time zone offset, +HHMM (TODO)
-  - %Z: time zone name, string (TODO)
+  - %z: time zone offset, +HHMM
   or one of the predefined formats:
   - :iso-8601
   - :rfc-3339
@@ -142,7 +174,6 @@
           parser)))
 
       (def dt (parser ts))
-      (os/mktime dt local))))
-
-
+      (def t (os/mktime dt local))
+      t)))
 

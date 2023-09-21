@@ -4,4 +4,4 @@
   :version "0.0.1")
 
 (declare-source
-  :source @["src/time" "src/time.janet"])
+  :source ["src/time.janet"])
